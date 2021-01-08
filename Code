@@ -1,0 +1,169 @@
+#Load all of the libraries
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy import stats
+%matplotlib inline
+from sklearn.linear_model import LogisticRegression
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.model_selection import train_test_split
+from sklearn import metrics
+from datetime import date
+
+CX = pd.read_csv('C:/Users/stipecl/Desktop/Data/Byrne CX Model/Raw Data/ByrneCX_Up.csv')
+CX.columns
+
+col_list_Up = ["FUZE Project ID","Candidate Selection Milestone (A)","Inservice Activation (A)", "Real Estate Completed (A)", "Construction Started (A)",
+           "Power Completed (A)", "Power and Utility Milestone (A)", "Physical Construction Completed (A)", "Splice and Test (A)", "Ready to Integrate Milestone (A)",
+              "Real Estate Specialist", "Vendor Construction Manager"]
+CX_Up = pd.read_csv('C:/Users/stipecl/Desktop/Data/Byrne CX Model/Raw Data/ByrneCX_Up.csv', usecols=col_list_Up)
+
+#Need to take a look at all of the ID's, remove all duplicates - have 451 unique IDs
+CX_Up['FUZE Project ID'].nunique()
+
+#Take a look into the total number of rows - looks like there are 3829 records and 12 columns
+CX_Up.shape
+
+#Investigate which ones are duplicates
+CX_Up.sort_values('FUZE Project ID', inplace=True)
+#Dropping all duplicate Values 
+CX_Up.drop_duplicates(subset='FUZE Project ID', keep='first', inplace=True)
+CX_Up.shape
+
+#Need to rename the columns 
+CX_Up.rename(columns = {"FUZE Project ID": "ID","Construction Started (A)": "CS_A", "Physical Construction Completed (A)": "PCC_A",
+                        "Power Completed (A)": "PC_A", "Ready to Integrate Milestone (A)": "RIM_A",
+                        "Power and Utility Milestone (A)": "PUM_A","Splice and Test (A)": "SaT_A",
+                        "Real Estate Specialist": "RES", "Real Estate Completed (A)":"REC_A", "Vendor Construction Manager":"VCM",
+                       "Candidate Selection Milestone (A)":"CSM_A", "Inservice Activation (A)":"IA_A"}, inplace=True)
+                       
+#Need to convert the columns from object to datetime
+CX_Up['CS_A']=pd.to_datetime(CX_Up.CS_A)
+CX_Up['PCC_A']=pd.to_datetime(CX_Up.PCC_A)
+CX_Up['PC_A']=pd.to_datetime(CX_Up.PC_A)
+CX_Up['RIM_A']=pd.to_datetime(CX_Up.RIM_A)
+CX_Up['PUM_A']=pd.to_datetime(CX_Up.PUM_A)
+CX_Up['SaT_A']=pd.to_datetime(CX_Up.SaT_A)
+CX_Up['REC_A']=pd.to_datetime(CX_Up.REC_A)
+CX_Up['CSM_A']=pd.to_datetime(CX_Up.CSM_A)
+CX_Up['IA_A']=pd.to_datetime(CX_Up.IA_A)
+
+
+#1. Subtract the Real Estate Completion to CX - in terms of delta days
+CX_Up['RE_to_CX'] = CX_Up['PCC_A'] - CX_Up['REC_A']
+#2. Construction Started to Construction completion
+CX_Up['CX_S_to_CX_C']=CX_Up['PCC_A']-CX_Up['CS_A']
+#3. Look at Construction started to Power and utilities
+CX_Up['CX_S_to_PUM']=CX_Up['PUM_A']-CX_Up['CS_A']
+#4. Look at Power and Utilies M to CX + Power completed
+CX_Up['PUM_to_PC'] = CX_Up['PC_A'] - CX_Up['PUM_A']
+#5 - Look at Construction completed to Power completed
+CX_Up['CX_C_to_PC']=CX_Up['PC_A'] - CX_Up['PCC_A']
+#6. Subtract the Candidate Selection from Inservice Activation - in terms of delta days
+CX_Up['CSM_to_IA']= CX_Up['IA_A']- CX_Up['CSM_A']
+
+##Change the datatype so you can get the difference in days
+# Days to completion
+CX_Up['Days_To_Completion']=CX_Up['CSM_to_IA'].dt.days
+# Real Estate to Completion
+CX_Up['RE_to_CX_Completion']=CX_Up['RE_to_CX'].dt.days
+# Construction Started to Construction Completion
+CX_Up['CX_Time']=CX_Up['CX_S_to_CX_C'].dt.days
+# Construction started to Power and Utilities
+CX_Up['CX_to_Power_Util']=CX_Up['CX_S_to_PUM'].dt.days
+#Power and Utilities to CX + Power completed
+CX_Up['Power_Util_to_Power']= CX_Up['PUM_to_PC'].dt.days
+
+#Take a look at a basic plot - one variable
+X_data = CX_Up['RE_to_CX_Completion']
+y_data = CX_Up['Days_To_Completion']
+plt.scatter(X_data, y_data)
+plt.show()
+
+#Need to filter df to only have positive values
+value = CX_Up['RE_to_CX_Completion'] > 0
+
+CX_Up2 = CX_Up[value]
+
+#Take a look at a basic plot - updated
+X_data = CX_Up2['RE_to_CX_Completion']
+y_data = CX_Up2['Days_To_Completion']
+plt.scatter(X_data, y_data)
+plt.show()
+
+sns.set_style('whitegrid')
+#Get coeffs of linear fit
+slope, intercept, r_value, p_value, std_err = stats.linregress(CX_Up2['RE_to_CX_Completion'],CX_Up2['Days_To_Completion'])
+
+#use line_kws to set line label for legend
+ax = sns.regplot(x='RE_to_CX_Completion',y='Days_To_Completion',data= CX_Up2, color='b',
+                 line_kws={'label':"y={0:.1f}x+{1:.1f}".format(slope,intercept)})
+ax.legend
+plt.show()
+
+
+#Removing items I dont want to look further into
+features=CX_Up2.columns.values.tolist()
+items_to_remove = ['ID', 'CS_A','PC_A','RIM_A','PUM_A','SaT_A','RES','VCM',
+ 'PCC_A',
+ 'CSM_A',
+ 'IA_A',
+ 'REC_A',
+ 'RE_to_CX',
+ 'CSM_to_IA']
+features = [item for item in features if item not in items_to_remove]
+features
+
+#Taking a look into a correlation matrix now
+corr = CX_Up2[features].corr()
+corr.iloc[0:5,0:5]
+
+sns.heatmap(corr,vmin=0,vmax=1, linecolor='black',linewidths=.1)
+
+
+#Now looking at a linreg model
+CX_Up2 = CX_Up2.dropna()
+
+X = CX_Up2.Days_To_Completion
+y= CX_Up2.RE_to_CX_Completion
+
+X=X.values.reshape(-1,1)
+X.shape
+y.shape
+
+from sklearn.neighbors import KNeighborsClassifier
+knn = KNeighborsClassifier(n_neighbors=1)
+knn.fit(X,y)
+print(knn.fit)
+#Take a look at the logistic regression
+logreg=LogisticRegression()
+
+#Fit the model with data
+logreg.fit(X,y)
+y_pred = logreg.predict(X)
+
+len(y_pred)
+
+metrics.accuracy_score(y,y_pred)
+
+X_train, X_test, y_train, y_test = train_test_split(X,y,test_size=0.4, random_state=4)
+
+logreg.fit(X_train, y_train)
+
+#Make predictions on the testing set
+y_pred=logreg.predict(X_test)
+metrics.accuracy_score(y_test,y_pred)
+
+#Model accuracy is very very low, need to find which neighbors will predict the highest level of accuracy
+k_range = (1:30)
+scores=[]
+for k in k_range:
+    knn=KNeighborsClassifier(n_neighbors=k)
+    knn.fit(X_train, y_train)
+    y_pred=knn.predict(X_test)
+    scores.append(metrics.accuracy_score(y_test,y_pred))
+    
+plt.plot(k_range,scores)
+plt.xlabel('Value of K for KNN')
+plt.ylabel('Accuracy')
