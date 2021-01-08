@@ -11,13 +11,13 @@ from sklearn.model_selection import train_test_split
 from sklearn import metrics
 from datetime import date
 
-CX = pd.read_csv('C:/Users/stipecl/Desktop/Data/Byrne CX Model/Raw Data/ByrneCX_Up.csv')
+CX = pd.read_csv('....csv')
 CX.columns
 
 col_list_Up = ["FUZE Project ID","Candidate Selection Milestone (A)","Inservice Activation (A)", "Real Estate Completed (A)", "Construction Started (A)",
            "Power Completed (A)", "Power and Utility Milestone (A)", "Physical Construction Completed (A)", "Splice and Test (A)", "Ready to Integrate Milestone (A)",
               "Real Estate Specialist", "Vendor Construction Manager"]
-CX_Up = pd.read_csv('C:/Users/stipecl/Desktop/Data/Byrne CX Model/Raw Data/ByrneCX_Up.csv', usecols=col_list_Up)
+CX_Up = pd.read_csv('.....csv', usecols=col_list_Up)
 
 #Need to take a look at all of the ID's, remove all duplicates - have 451 unique IDs
 CX_Up['FUZE Project ID'].nunique()
